@@ -19,15 +19,20 @@ import java.time.format.DateTimeFormatter;
 import java.util.Locale;
 import java.util.Optional;
 
+//Spring that this is a Service component.
 @Service
 @RequiredArgsConstructor
 public class PdfReceiptService {
 
+    //The service needs PaymentRepository to retrieve payment information.
     private final PaymentRepository paymentRepository;
 
+    //This method generates the PDF receipt
     public byte[] generateReceipt(Booking booking) throws IOException {
+        //This finds the payment belonging to the booking
         Optional<Payment> paymentOpt = paymentRepository.findByBookingBookingId(booking.getBookingId());
 
+        //Creates a new PDF document
         try (PDDocument document = new PDDocument()) {
             PDPage page = new PDPage(PDRectangle.A4);
             document.addPage(page);
