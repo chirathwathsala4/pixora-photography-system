@@ -1,0 +1,19 @@
+package com.pixora.pattern.decorator;
+
+import java.math.BigDecimal;
+
+/**
+ * DESIGN PATTERN: Decorator (Structural) - COMPONENT INTERFACE
+ *
+ * Anything that can report a booking price. The base package price and every
+ * price add-on/discount implement this same interface, so they can be
+ * wrapped inside each other in any combination.
+ */
+public interface BookingPrice {
+
+    /** @return the price in LKR after this layer has been applied. */
+    BigDecimal getAmount();
+
+    /** @return a human-readable breakdown of how the price was built. */
+    String getDescription();
+}

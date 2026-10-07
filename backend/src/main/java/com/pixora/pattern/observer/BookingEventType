@@ -1,0 +1,12 @@
+package com.pixora.pattern.observer;
+
+/**
+ * The kinds of booking events that observers can be notified about.
+ * The enum name is also stored as the notification "type".
+ */
+public enum BookingEventType {
+    ASSIGNMENT_REQUEST,
+    ASSIGNMENT_ACCEPTED,
+    ASSIGNMENT_DECLINED,
+    BOOKING_UPDATE
+}

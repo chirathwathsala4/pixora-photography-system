@@ -1,0 +1,27 @@
+package com.pixora.pattern.observer;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.stereotype.Component;
+
+/**
+ * DESIGN PATTERN: Observer (Behavioral) - CONCRETE OBSERVER
+ *
+ * A second, independent observer that writes every booking event to the
+ * server log. It shows that one event can trigger several reactions without
+ * BookingService knowing about any of them.
+ */
+@Component
+public class BookingAuditLogObserver implements BookingObserver {
+
+    private static final Logger log = LoggerFactory.getLogger(BookingAuditLogObserver.class);
+
+    @Override
+    public void onBookingEvent(BookingEvent event) {
+        log.info("[BOOKING AUDIT] {} | booking #{} | {} | recipients: {}",
+                event.getType(),
+                event.getBookingId(),
+                event.getTitle(),
+                event.getRecipients().size());
+    }
+}

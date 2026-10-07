@@ -1,0 +1,49 @@
+package com.pixora.pattern.observer;
+
+import com.pixora.entity.User;
+
+import java.util.List;
+
+/**
+ * DESIGN PATTERN: Observer (Behavioral) - the EVENT (data passed to observers)
+ *
+ * Describes something that happened to a booking: what kind of event it is,
+ * which booking it belongs to, a title/message, and who should hear about it.
+ */
+public class BookingEvent {
+
+    private final BookingEventType type;
+    private final Long bookingId;
+    private final String title;
+    private final String message;
+    private final List<User> recipients;
+
+    public BookingEvent(BookingEventType type, Long bookingId, String title,
+                        String message, List<User> recipients) {
+        this.type = type;
+        this.bookingId = bookingId;
+        this.title = title;
+        this.message = message;
+        this.recipients = recipients != null ? List.copyOf(recipients) : List.of();
+    }
+
+    public BookingEventType getType() {
+        return type;
+    }
+
+    public Long getBookingId() {
+        return bookingId;
+    }
+
+    public String getTitle() {
+        return title;
+    }
+
+    public String getMessage() {
+        return message;
+    }
+
+    public List<User> getRecipients() {
+        return recipients;
+    }
+}

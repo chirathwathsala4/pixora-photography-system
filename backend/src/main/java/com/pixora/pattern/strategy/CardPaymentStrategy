@@ -1,0 +1,37 @@
+package com.pixora.pattern.strategy;
+
+import com.pixora.dto.PaymentRequest;
+import com.pixora.entity.Booking;
+import com.pixora.entity.Payment;
+
+/**
+ * DESIGN PATTERN: Strategy (Behavioral) - CONCRETE Strategy
+ *
+ * Card payments are settled instantly, so the payment is marked PAID and the
+ * booking is moved straight to PAID without waiting for admin approval.
+ */
+public class CardPaymentStrategy implements PaymentStrategy {
+
+    @Override
+    public String getPaymentMethod() {
+        return "CARD";
+    }
+
+    /** Reference format: CARD-<last 4 digits>-<timestamp>. */
+    @Override
+    public String generateTransactionRef(PaymentRequest request) {
+        String cleanCardNumber = request.getCardNumber() != null
+                ? request.getCardNumber().replaceAll("\\s", "")
+                : "";
+        String lastFourDigits = cleanCardNumber.length() >= 4
+                ? cleanCardNumber.substring(cleanCardNumber.length() - 4)
+                : "CARD";
+        return "CARD-" + lastFourDigits + "-" + System.currentTimeMillis();
+    }
+
+    @Override
+    public void processPayment(Payment payment, Booking booking) {
+        payment.setPaymentStatus(Payment.PaymentStatus.PAID);
+        booking.setStatus(Booking.BookingStatus.PAID);
+    }
+}

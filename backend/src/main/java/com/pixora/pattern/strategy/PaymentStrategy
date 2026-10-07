@@ -1,0 +1,39 @@
+package com.pixora.pattern.strategy;
+
+import com.pixora.dto.PaymentRequest;
+import com.pixora.entity.Booking;
+import com.pixora.entity.Payment;
+
+/**
+ * DESIGN PATTERN: Strategy (Behavioral) - Strategy INTERFACE
+ *
+ * Defines a common contract for every way a client can pay for a booking.
+ * Each concrete strategy (card, bank transfer, ...) implements its own
+ * algorithm for generating a transaction reference and deciding the
+ * resulting payment / booking status.
+ *
+ * Adding a new payment method only requires a new class that implements
+ * this interface; PaymentService does not need to change.
+ */
+public interface PaymentStrategy {
+
+    /** @return a short name for the payment method, e.g. "CARD". */
+    String getPaymentMethod();
+
+    /**
+     * Builds a transaction reference when the client did not supply one.
+     *
+     * @param request the incoming payment request
+     * @return a generated, unique transaction reference
+     */
+    String generateTransactionRef(PaymentRequest request);
+
+    /**
+     * Applies this method's business rules: sets the payment status and,
+     * if needed, updates the booking status.
+     *
+     * @param payment the payment being processed
+     * @param booking the booking being paid for
+     */
+    void processPayment(Payment payment, Booking booking);
+}

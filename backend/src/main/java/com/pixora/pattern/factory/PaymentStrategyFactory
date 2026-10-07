@@ -1,0 +1,43 @@
+package com.pixora.pattern.factory;
+
+import com.pixora.dto.PaymentRequest;
+import com.pixora.pattern.strategy.BankTransferPaymentStrategy;
+import com.pixora.pattern.strategy.CardPaymentStrategy;
+import com.pixora.pattern.strategy.PaymentStrategy;
+
+/**
+ * DESIGN PATTERN: Factory (Creational)
+ *
+ * Centralises the decision of WHICH PaymentStrategy object to create.
+ * PaymentService asks the factory for a strategy and never uses "new" on a
+ * concrete strategy itself, so the creation logic lives in one place.
+ *
+ * To support a new payment method, add a new concrete strategy and one more
+ * branch here - no other class needs to change.
+ */
+public final class PaymentStrategyFactory {
+
+    /** Utility class - not meant to be instantiated. */
+    private PaymentStrategyFactory() {
+    }
+
+    /**
+     * Creates the correct payment strategy for the given request.
+     *
+     * @param request the client's payment request
+     * @return a CardPaymentStrategy or a BankTransferPaymentStrategy
+     */
+    public static PaymentStrategy createStrategy(PaymentRequest request) {
+        if (isCardPayment(request)) {
+            return new CardPaymentStrategy();
+        }
+        return new BankTransferPaymentStrategy();
+    }
+
+    /** A request counts as a card payment if any card detail is present. */
+    private static boolean isCardPayment(PaymentRequest request) {
+        return "CARD".equalsIgnoreCase(request.getPaymentMethod())
+                || (request.getCardNumber() != null && !request.getCardNumber().isBlank())
+                || (request.getTransactionRef() != null && request.getTransactionRef().startsWith("CARD-"));
+    }
+}

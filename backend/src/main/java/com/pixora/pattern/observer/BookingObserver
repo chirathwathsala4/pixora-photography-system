@@ -1,0 +1,17 @@
+package com.pixora.pattern.observer;
+
+/**
+ * DESIGN PATTERN: Observer (Behavioral) - OBSERVER INTERFACE
+ *
+ * Any class that wants to react to booking events implements this interface
+ * and is registered with the BookingEventPublisher (the subject).
+ */
+public interface BookingObserver {
+
+    /**
+     * Called by the subject every time a booking event is published.
+     *
+     * @param event details of what happened
+     */
+    void onBookingEvent(BookingEvent event);
+}

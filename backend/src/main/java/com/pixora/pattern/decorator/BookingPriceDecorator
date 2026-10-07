@@ -1,0 +1,18 @@
+package com.pixora.pattern.decorator;
+
+/**
+ * DESIGN PATTERN: Decorator (Structural) - ABSTRACT DECORATOR
+ *
+ * Holds a reference to another BookingPrice (the object being "decorated")
+ * and implements the same interface. Concrete decorators extend this class
+ * and add their own amount on top of the wrapped price.
+ */
+public abstract class BookingPriceDecorator implements BookingPrice {
+
+    /** The price object being wrapped (could be the base price or another decorator). */
+    protected final BookingPrice wrappedPrice;
+
+    protected BookingPriceDecorator(BookingPrice wrappedPrice) {
+        this.wrappedPrice = wrappedPrice;
+    }
+}

@@ -1,0 +1,32 @@
+package com.pixora.pattern.strategy;
+
+import com.pixora.dto.PaymentRequest;
+import com.pixora.entity.Booking;
+import com.pixora.entity.Payment;
+
+/**
+ * DESIGN PATTERN: Strategy (Behavioral) - CONCRETE Strategy
+ *
+ * Bank transfers must be checked manually, so the payment is saved as
+ * PENDING_APPROVAL and the booking status is left unchanged until an admin
+ * approves it.
+ */
+public class BankTransferPaymentStrategy implements PaymentStrategy {
+
+    @Override
+    public String getPaymentMethod() {
+        return "BANK_TRANSFER";
+    }
+
+    /** Reference format: TXN-<timestamp>. */
+    @Override
+    public String generateTransactionRef(PaymentRequest request) {
+        return "TXN-" + System.currentTimeMillis();
+    }
+
+    @Override
+    public void processPayment(Payment payment, Booking booking) {
+        payment.setPaymentStatus(Payment.PaymentStatus.PENDING_APPROVAL);
+        // Booking status is intentionally NOT changed - admin approval is required.
+    }
+}

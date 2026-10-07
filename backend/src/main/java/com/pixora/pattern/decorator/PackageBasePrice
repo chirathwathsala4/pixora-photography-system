@@ -1,0 +1,30 @@
+package com.pixora.pattern.decorator;
+
+import com.pixora.entity.Package;
+
+import java.math.BigDecimal;
+
+/**
+ * DESIGN PATTERN: Decorator (Structural) - CONCRETE COMPONENT
+ *
+ * The starting point of every price: the photography package's base price.
+ * Decorators are wrapped around this object to add fees or discounts.
+ */
+public class PackageBasePrice implements BookingPrice {
+
+    private final Package photoPackage;
+
+    public PackageBasePrice(Package photoPackage) {
+        this.photoPackage = photoPackage;
+    }
+
+    @Override
+    public BigDecimal getAmount() {
+        return photoPackage.getPriceLkr() != null ? photoPackage.getPriceLkr() : BigDecimal.ZERO;
+    }
+
+    @Override
+    public String getDescription() {
+        return photoPackage.getPackageName() + " (Rs. " + getAmount() + ")";
+    }
+}

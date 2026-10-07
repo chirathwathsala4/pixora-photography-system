@@ -1,0 +1,34 @@
+package com.pixora.pattern.observer;
+
+import com.pixora.entity.User;
+import com.pixora.service.NotificationService;
+import org.springframework.stereotype.Component;
+
+/**
+ * DESIGN PATTERN: Observer (Behavioral) - CONCRETE OBSERVER
+ *
+ * Reacts to booking events by saving an in-app notification for every
+ * recipient of the event (photographer, admins, ...).
+ */
+@Component
+public class NotificationObserver implements BookingObserver {
+
+    private final NotificationService notificationService;
+
+    public NotificationObserver(NotificationService notificationService) {
+        this.notificationService = notificationService;
+    }
+
+    @Override
+    public void onBookingEvent(BookingEvent event) {
+        for (User recipient : event.getRecipients()) {
+            notificationService.sendNotification(
+                    recipient,
+                    event.getTitle(),
+                    event.getMessage(),
+                    event.getType().name(),
+                    event.getBookingId()
+            );
+        }
+    }
+}

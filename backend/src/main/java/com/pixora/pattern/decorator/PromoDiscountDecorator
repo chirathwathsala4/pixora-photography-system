@@ -1,0 +1,29 @@
+package com.pixora.pattern.decorator;
+
+import java.math.BigDecimal;
+
+/**
+ * DESIGN PATTERN: Decorator (Structural) - CONCRETE DECORATOR
+ *
+ * Subtracts a promo-code discount from the wrapped price. The result never
+ * goes below zero.
+ */
+public class PromoDiscountDecorator extends BookingPriceDecorator {
+
+    private final BigDecimal discount;
+
+    public PromoDiscountDecorator(BookingPrice wrappedPrice, BigDecimal discount) {
+        super(wrappedPrice);
+        this.discount = discount != null ? discount : BigDecimal.ZERO;
+    }
+
+    @Override
+    public BigDecimal getAmount() {
+        return wrappedPrice.getAmount().subtract(discount).max(BigDecimal.ZERO);
+    }
+
+    @Override
+    public String getDescription() {
+        return wrappedPrice.getDescription() + " - promo discount (Rs. " + discount + ")";
+    }
+}

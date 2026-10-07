@@ -1,0 +1,47 @@
+package com.pixora.pattern.observer;
+
+import org.springframework.stereotype.Component;
+
+import java.util.List;
+import java.util.concurrent.CopyOnWriteArrayList;
+
+/**
+ * DESIGN PATTERN: Observer (Behavioral) - SUBJECT (a.k.a. publisher)
+ *
+ * Keeps a list of observers and notifies all of them whenever a booking event
+ * happens. BookingService only talks to this publisher; it does not know who
+ * is listening (in-app notifications, audit log, ...). New reactions can be
+ * added by writing a new BookingObserver without touching BookingService.
+ */
+@Component
+public class BookingEventPublisher {
+
+    private final List<BookingObserver> observers = new CopyOnWriteArrayList<>();
+
+    /**
+     * Spring passes in every bean that implements BookingObserver, and each
+     * one is attached automatically on start-up.
+     */
+    public BookingEventPublisher(List<BookingObserver> initialObservers) {
+        initialObservers.forEach(this::attach);
+    }
+
+    /** Registers an observer. */
+    public void attach(BookingObserver observer) {
+        if (observer != null && !observers.contains(observer)) {
+            observers.add(observer);
+        }
+    }
+
+    /** Unregisters an observer. */
+    public void detach(BookingObserver observer) {
+        observers.remove(observer);
+    }
+
+    /** Sends the event to every registered observer. */
+    public void notifyObservers(BookingEvent event) {
+        for (BookingObserver observer : observers) {
+            observer.onBookingEvent(event);
+        }
+    }
+}

@@ -1,0 +1,28 @@
+package com.pixora.pattern.decorator;
+
+import java.math.BigDecimal;
+
+/**
+ * DESIGN PATTERN: Decorator (Structural) - CONCRETE DECORATOR
+ *
+ * Adds the delivery fee (e.g. express album delivery) to the wrapped price.
+ */
+public class DeliveryFeeDecorator extends BookingPriceDecorator {
+
+    private final BigDecimal deliveryFee;
+
+    public DeliveryFeeDecorator(BookingPrice wrappedPrice, BigDecimal deliveryFee) {
+        super(wrappedPrice);
+        this.deliveryFee = deliveryFee != null ? deliveryFee : BigDecimal.ZERO;
+    }
+
+    @Override
+    public BigDecimal getAmount() {
+        return wrappedPrice.getAmount().add(deliveryFee);
+    }
+
+    @Override
+    public String getDescription() {
+        return wrappedPrice.getDescription() + " + delivery fee (Rs. " + deliveryFee + ")";
+    }
+}

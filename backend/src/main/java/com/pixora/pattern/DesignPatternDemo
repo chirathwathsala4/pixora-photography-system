@@ -1,0 +1,139 @@
+package com.pixora.pattern;
+
+import com.pixora.dto.PaymentRequest;
+import com.pixora.entity.Booking;
+import com.pixora.entity.Package;
+import com.pixora.entity.Payment;
+import com.pixora.entity.User;
+import com.pixora.pattern.decorator.BookingPrice;
+import com.pixora.pattern.decorator.DeliveryFeeDecorator;
+import com.pixora.pattern.decorator.PackageBasePrice;
+import com.pixora.pattern.decorator.PromoDiscountDecorator;
+import com.pixora.pattern.factory.PaymentStrategyFactory;
+import com.pixora.pattern.observer.BookingAuditLogObserver;
+import com.pixora.pattern.observer.BookingEvent;
+import com.pixora.pattern.observer.BookingEventPublisher;
+import com.pixora.pattern.observer.BookingEventType;
+import com.pixora.pattern.observer.BookingObserver;
+import com.pixora.pattern.singleton.OtpStore;
+import com.pixora.pattern.strategy.PaymentContext;
+import com.pixora.pattern.strategy.PaymentStrategy;
+
+import java.math.BigDecimal;
+import java.time.LocalDateTime;
+import java.util.List;
+
+/**
+ * Stand-alone demo of the five design patterns used in Pixora.
+ *
+ * Run this class's main() method directly (no database or server needed).
+ * It prints the result of each pattern to the console. The real application
+ * starts from {@link com.pixora.PixoraApplication}.
+ */
+public class DesignPatternDemo {
+
+    public static void main(String[] args) {
+        demoSingleton();
+        demoFactoryAndStrategy();
+        demoDecorator();
+        demoObserver();
+    }
+
+    /** 1. Singleton: OtpStore.getInstance() always returns the same object. */
+    private static void demoSingleton() {
+        printHeader("1. SINGLETON PATTERN - OtpStore");
+        OtpStore first = OtpStore.getInstance();
+        OtpStore second = OtpStore.getInstance();
+        first.saveOtp("0771234567", "482915", LocalDateTime.now().plusMinutes(10));
+
+        System.out.println("first  instance hash : " + System.identityHashCode(first));
+        System.out.println("second instance hash : " + System.identityHashCode(second));
+        System.out.println("Same instance?       : " + (first == second));
+        System.out.println("OTP saved via first, read via second: " + second.getOtp("0771234567").getCode());
+    }
+
+    /** 2 + 3. Factory chooses the strategy; Strategy (via its Context) processes the payment. */
+    private static void demoFactoryAndStrategy() {
+        printHeader("2. FACTORY + 3. STRATEGY PATTERN - Payments");
+
+        PaymentRequest cardRequest = new PaymentRequest();
+        cardRequest.setPaymentMethod("CARD");
+        cardRequest.setCardNumber("4111 1111 1111 1234");
+        cardRequest.setAmountPaidLkr(new BigDecimal("45000"));
+
+        PaymentRequest bankRequest = new PaymentRequest();
+        bankRequest.setPaymentMethod("BANK_TRANSFER");
+        bankRequest.setAmountPaidLkr(new BigDecimal("45000"));
+
+        for (PaymentRequest request : List.of(cardRequest, bankRequest)) {
+            // Factory creates the right concrete strategy
+            PaymentStrategy strategy = PaymentStrategyFactory.createStrategy(request);
+
+            Booking booking = new Booking();
+            booking.setStatus(Booking.BookingStatus.PENDING_ADMIN_APPROVAL);
+            Payment payment = new Payment();
+
+            // Context runs whichever strategy it was given
+            PaymentContext context = new PaymentContext(strategy);
+            context.executePayment(payment, booking, request);
+
+            System.out.println("Request method  : " + request.getPaymentMethod());
+            System.out.println("Factory created : " + strategy.getClass().getSimpleName());
+            System.out.println("Transaction ref : " + payment.getTransactionRef());
+            System.out.println("Payment status  : " + payment.getPaymentStatus());
+            System.out.println("Booking status  : " + booking.getStatus());
+            System.out.println();
+        }
+    }
+
+    /** 4. Decorator: wrap the base package price with a fee and a discount. */
+    private static void demoDecorator() {
+        printHeader("4. DECORATOR PATTERN - Booking price");
+
+        Package photoPackage = new Package();
+        photoPackage.setPackageName("Birthday Gold Package");
+        photoPackage.setPriceLkr(new BigDecimal("40000"));
+
+        BookingPrice price = new PackageBasePrice(photoPackage);
+        System.out.println("Base price         : Rs. " + price.getAmount());
+
+        price = new DeliveryFeeDecorator(price, new BigDecimal("5000"));
+        System.out.println("+ DeliveryFee      : Rs. " + price.getAmount());
+
+        price = new PromoDiscountDecorator(price, new BigDecimal("4000"));
+        System.out.println("- PromoDiscount    : Rs. " + price.getAmount());
+
+        System.out.println("Breakdown          : " + price.getDescription());
+    }
+
+    /** 5. Observer: one event, several observers react. */
+    private static void demoObserver() {
+        printHeader("5. OBSERVER PATTERN - Booking events");
+
+        // A console observer for the demo (the real app uses NotificationObserver,
+        // which needs the database to save notifications).
+        BookingObserver consoleNotificationObserver = event -> event.getRecipients().forEach(user ->
+                System.out.println("[NotificationObserver] -> " + user.getFullName() + ": " + event.getTitle()));
+
+        BookingEventPublisher publisher = new BookingEventPublisher(
+                List.of(consoleNotificationObserver, new BookingAuditLogObserver()));
+
+        User photographer = new User();
+        photographer.setFullName("Kasun Perera (Photographer)");
+
+        System.out.println("Publishing ASSIGNMENT_REQUEST for booking #12 ...");
+        publisher.notifyObservers(new BookingEvent(
+                BookingEventType.ASSIGNMENT_REQUEST,
+                12L,
+                "New Assignment Request",
+                "You have been assigned to Booking #12. Please accept or decline.",
+                List.of(photographer)));
+    }
+
+    private static void printHeader(String title) {
+        System.out.println();
+        System.out.println("==================================================");
+        System.out.println(" " + title);
+        System.out.println("==================================================");
+    }
+}

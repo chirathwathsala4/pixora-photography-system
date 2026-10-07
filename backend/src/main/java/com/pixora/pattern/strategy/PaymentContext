@@ -1,0 +1,48 @@
+package com.pixora.pattern.strategy;
+
+import com.pixora.dto.PaymentRequest;
+import com.pixora.entity.Booking;
+import com.pixora.entity.Payment;
+
+/**
+ * DESIGN PATTERN: Strategy (Behavioral) - CONTEXT class
+ *
+ * The context holds a reference to a PaymentStrategy and delegates the
+ * payment work to it. It does not know (or care) which concrete strategy it
+ * is using, so strategies can be swapped at runtime with setStrategy().
+ */
+public class PaymentContext {
+
+    private PaymentStrategy strategy;
+
+    public PaymentContext(PaymentStrategy strategy) {
+        this.strategy = strategy;
+    }
+
+    /** Swaps the payment algorithm at runtime. */
+    public void setStrategy(PaymentStrategy strategy) {
+        this.strategy = strategy;
+    }
+
+    public PaymentStrategy getStrategy() {
+        return strategy;
+    }
+
+    /**
+     * Runs the payment using the current strategy.
+     *
+     * @param payment the payment entity to fill in
+     * @param booking the booking being paid for
+     * @param request the client's payment request
+     */
+    public void executePayment(Payment payment, Booking booking, PaymentRequest request) {
+        String transactionRef = request.getTransactionRef();
+        if (transactionRef == null || transactionRef.isBlank()) {
+            transactionRef = strategy.generateTransactionRef(request);
+        }
+        payment.setTransactionRef(transactionRef);
+        payment.setAmountPaidLkr(request.getAmountPaidLkr());
+
+        strategy.processPayment(payment, booking);
+    }
+}

@@ -1,0 +1,88 @@
+package com.pixora.pattern.singleton;
+
+import java.time.LocalDateTime;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+
+/**
+ * DESIGN PATTERN: Singleton (Creational)
+ *
+ * OtpStore is the single, application-wide in-memory store for the one-time
+ * passwords (OTPs) used in the "forgot password" flow.
+ *
+ * Why Singleton?
+ *  - Every part of the system must see the SAME set of OTP codes. If two
+ *    instances existed, an OTP saved in one could not be verified in the other.
+ *
+ * How it is implemented:
+ *  1. The constructor is private, so no other class can call "new OtpStore()".
+ *  2. The only instance is held in a private static volatile field.
+ *  3. getInstance() creates the instance lazily, the first time it is needed,
+ *     using double-checked locking so it is thread-safe.
+ */
+public final class OtpStore {
+
+    /** The one and only instance (volatile so all threads see it correctly). */
+    private static volatile OtpStore instance;
+
+    /** Phone number -> OTP entry. ConcurrentHashMap keeps it thread-safe. */
+    private final Map<String, OtpEntry> otpByPhone = new ConcurrentHashMap<>();
+
+    /** Private constructor prevents creation from outside this class. */
+    private OtpStore() {
+    }
+
+    /**
+     * Global access point to the single OtpStore instance.
+     *
+     * @return the shared OtpStore
+     */
+    public static OtpStore getInstance() {
+        if (instance == null) {                 // 1st check (no locking, fast path)
+            synchronized (OtpStore.class) {
+                if (instance == null) {         // 2nd check (inside the lock)
+                    instance = new OtpStore();
+                }
+            }
+        }
+        return instance;
+    }
+
+    /** Saves (or replaces) the OTP for a phone number. */
+    public void saveOtp(String phone, String code, LocalDateTime expiresAt) {
+        otpByPhone.put(phone, new OtpEntry(code, expiresAt));
+    }
+
+    /** @return the stored OTP entry for the phone number, or null if none exists. */
+    public OtpEntry getOtp(String phone) {
+        return otpByPhone.get(phone);
+    }
+
+    /** Removes the OTP for a phone number (after use or expiry). */
+    public void removeOtp(String phone) {
+        otpByPhone.remove(phone);
+    }
+
+    /** Immutable value object holding one OTP code and its expiry time. */
+    public static final class OtpEntry {
+        private final String code;
+        private final LocalDateTime expiresAt;
+
+        public OtpEntry(String code, LocalDateTime expiresAt) {
+            this.code = code;
+            this.expiresAt = expiresAt;
+        }
+
+        public String getCode() {
+            return code;
+        }
+
+        public LocalDateTime getExpiresAt() {
+            return expiresAt;
+        }
+
+        public boolean isExpired() {
+            return expiresAt.isBefore(LocalDateTime.now());
+        }
+    }
+}
