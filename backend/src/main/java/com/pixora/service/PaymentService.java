@@ -39,10 +39,10 @@ public class PaymentService {
             }
         }
 
-        // Factory pattern: the factory decides which payment strategy to create.Card,Online Transer
+        // Factory pattern: the factory decides which payment strategy to create.(Online Transfer with Transaction ID,Online Payment)
         PaymentStrategy strategy = PaymentStrategyFactory.createStrategy(request);
 
-        // Strategy pattern: the context runs whichever strategy(Card,Online Transer) it was given.
+        // Strategy pattern: the context runs whichever strategy(Online Transfer with Transaction ID,Online Payment) itget only one.
         PaymentContext paymentContext = new PaymentContext(strategy);
 
         Payment payment = existing.orElse(Payment.builder().booking(booking).build());
