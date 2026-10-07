@@ -151,7 +151,7 @@ const Checkout = () => {
     const raw = e.target.value.replace(/\D/g, '').slice(0, 4);
     setCvv(raw);
   };
-
+  //Check the date validation 
   const validateExpiry = (val) => {
     if (!/^(0[1-9]|1[0-2])\/?([0-9]{2})$/.test(val)) return false;
     const parts = val.split('/');
@@ -173,6 +173,7 @@ const Checkout = () => {
         toast.warning('Please enter the Cardholder Name');
         return;
       }
+      //Check wheather card must have the 16 digits 
       const rawCard = cardNumber.replace(/\s/g, '');
       if (rawCard.length !== 16) {
         toast.warning('Please enter a valid 16-digit Card Number');
@@ -182,6 +183,7 @@ const Checkout = () => {
         toast.warning('Please enter a valid future Expiry Date (MM/YY)');
         return;
       }
+      //check the cvv has exactly 4 digits 
       if (!/^\d{3,4}$/.test(cvv)) {
         toast.warning('Please enter a valid 3 or 4-digit CVV security code');
         return;
