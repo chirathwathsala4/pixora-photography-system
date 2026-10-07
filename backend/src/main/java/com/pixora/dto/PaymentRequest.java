@@ -13,8 +13,6 @@ public class PaymentRequest {
     //stores the reference number
     private String transactionRef;
     
-    //Validation
-    //The payment amount cannot be empty/null,payment amount must be at least LKR 1.00
     @NotNull @DecimalMin("1.00")
     private BigDecimal amountPaidLkr;
 
