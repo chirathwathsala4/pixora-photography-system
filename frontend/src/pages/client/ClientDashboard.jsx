@@ -3,6 +3,8 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { useCart } from '../../context/CartContext';
 import api from '../../api/axios';
+
+// Imports icons used in the dashboard
 import { 
   Calendar, 
   Clock, 
@@ -25,486 +27,912 @@ import {
   Edit3,
   MessageCircle
 } from 'lucide-react';
+
 import { toast } from 'react-toastify';
 import { getImageUrl, downloadImage } from '../../utils/imageUrl';
 import BookingChatModal from '../../components/BookingChatModal';
 
+// Client dashboard component
 const ClientDashboard = () => {
+
+  // Gets the logged-in user
   const { user } = useAuth();
+
+  // Used to move between pages
   const navigate = useNavigate();
+
+  // Gets cart functions
   const { selectPackage, updateBookingDetails } = useCart();
+
+  // Stores client bookings
   const [bookings, setBookings] = useState([]);
+
+  // Stores reviews for each booking
   const [reviews, setReviews] = useState({}); // bookingId → { reviewId, starRating, reviewComment }
+
+  // Shows loading status
   const [loading, setLoading] = useState(true);
 
+
   // Modals state
+
+  // Stores selected booking for gallery
   const [galleryBooking, setGalleryBooking] = useState(null);
+
+  // Stores gallery photos
   const [galleryPhotos, setGalleryPhotos] = useState([]);
+
+  // Shows photo loading status
   const [loadingPhotos, setLoadingPhotos] = useState(false);
+
+  // Shows only favorite photos
   const [showFavoritesOnly, setShowFavoritesOnly] = useState(false);
 
+
+  // Stores selected booking for payment
   const [paymentBooking, setPaymentBooking] = useState(null);
+
+  // Stores selected payment method
   const [modalPaymentMethod, setModalPaymentMethod] = useState('CARD'); // 'CARD' | 'BANK_TRANSFER'
+
+  // Stores cardholder name
   const [modalCardName, setModalCardName] = useState(user?.fullName || '');
+
+  // Stores card number
   const [modalCardNumber, setModalCardNumber] = useState('');
+
+  // Stores card expiry date
   const [modalCardExpiry, setModalCardExpiry] = useState('');
+
+  // Stores card CVV
   const [modalCardCvv, setModalCardCvv] = useState('');
+
+  // Stores bank payment reference
   const [paymentRef, setPaymentRef] = useState('');
+
+  // Shows payment submitting status
   const [submittingPayment, setSubmittingPayment] = useState(false);
 
+
+  // Stores selected booking for review
   const [reviewBooking, setReviewBooking] = useState(null);
+
+  // Stores selected star rating
   const [starRating, setStarRating] = useState(5);
+
+  // Stores review feedback
   const [reviewComment, setReviewComment] = useState('');
+
+  // Shows review submitting status
   const [submittingReview, setSubmittingReview] = useState(false);
+
+  // Stores review being edited
   const [editReview, setEditReview] = useState(null); // { reviewId, bookingId, starRating, reviewComment }
+
+  // Stores review ID being deleted
   const [deletingReviewId, setDeletingReviewId] = useState(null);
 
+
+  // Stores receipt ID being downloaded
   const [downloadingReceiptId, setDownloadingReceiptId] = useState(null);
 
+
   // Edit Booking state
+
+  // Stores booking being edited
   const [editBookingModal, setEditBookingModal] = useState(null); // booking object
+
+  // Stores new event date
   const [editEventDate, setEditEventDate] = useState('');
+
+  // Stores new event time
   const [editEventTime, setEditEventTime] = useState('');
+
+  // Stores new venue address
   const [editVenueAddress, setEditVenueAddress] = useState('');
+
+  // Stores client notes
   const [editClientNotes, setEditClientNotes] = useState('');
+
+  // Shows booking saving status
   const [savingEdit, setSavingEdit] = useState(false);
 
+
   // Chat state
+
+  // Stores selected booking for chat
   const [chatBooking, setChatBooking] = useState(null);
 
 
+  // Gets all bookings of the client
   const fetchBookings = async () => {
+
     try {
+
+      // Gets bookings from backend
       const res = await api.get('/api/client/bookings');
+
+      // Stores booking list
       const bList = res.data;
+
+      // Updates bookings
       setBookings(bList);
+
+
       // Fetch existing review for each completed booking
       const reviewMap = {};
+
+      // Checks completed bookings
       await Promise.all(
+
         bList.filter(b => b.status === 'COMPLETED').map(async (b) => {
+
           try {
+
+            // Gets review for the booking
             const r = await api.get(`/api/client/bookings/${b.bookingId}/review`);
+
+            // Adds existing review to review map
             if (r.data) reviewMap[b.bookingId] = r.data;
+
           } catch {
-            // no review yet — that's fine
+
+            // No review yet
           }
+
         })
       );
+
+      // Stores all existing reviews
       setReviews(reviewMap);
+
     } catch (err) {
+
+      // Shows error if bookings cannot be loaded
       console.error('Error fetching client bookings', err);
       toast.error('Could not fetch your bookings');
+
     } finally {
+
+      // Stops loading
       setLoading(false);
     }
   };
 
+
+  // Runs when the dashboard opens
   useEffect(() => {
+
+    // Loads client bookings
     fetchBookings();
+
   }, []);
 
+
+  // Formats amount as Sri Lankan Rupees
   const formatLKR = (amount) => {
+
     return new Intl.NumberFormat('en-LK', {
+
+      // Uses currency format
       style: 'currency',
+
+      // Uses Sri Lankan Rupees
       currency: 'LKR',
+
+      // Removes decimal values
       maximumFractionDigits: 0
+
     }).format(amount).replace('LKR', 'Rs.');
   };
 
-  // Download PDF Receipt
-  const handleDownloadReceipt = async (bookingId) => {
-    setDownloadingReceiptId(bookingId);
-    try {
-      const res = await api.get(`/api/client/bookings/${bookingId}/receipt`, {
-        responseType: 'blob'
-      });
-      const blob = new Blob([res.data], { type: 'application/pdf' });
-      const url = window.URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.setAttribute('download', `Pixora-Receipt-${bookingId}.pdf`);
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-      window.URL.revokeObjectURL(url);
-      toast.success(`PDF Receipt downloaded for Booking #${bookingId}`);
-    } catch (err) {
-      console.error('Receipt download error', err);
-      toast.error('PDF receipt is available once your payment is approved by admin.');
-    } finally {
-      setDownloadingReceiptId(null);
-    }
-  };
+// Download PDF Receipt
+const handleDownloadReceipt = async (bookingId) => {
 
-  // Open Gallery Modal
-  const handleOpenGallery = async (booking) => {
-    setGalleryBooking(booking);
-    setLoadingPhotos(true);
-    try {
-      const res = await api.get(`/api/client/bookings/${booking.bookingId}/photos`);
-      setGalleryPhotos(res.data);
-    } catch (err) {
-      console.error('Error fetching gallery photos', err);
-      toast.error('Could not load gallery photos');
-    } finally {
-      setLoadingPhotos(false);
-    }
-  };
+  // Stores the booking ID being downloaded
+  setDownloadingReceiptId(bookingId);
 
-  // Card input formatters & validator for modal
-  const handleModalCardNumberChange = (e) => {
-    const raw = e.target.value.replace(/\D/g, '').slice(0, 16);
-    setModalCardNumber(raw.replace(/(\d{4})(?=\d)/g, '$1 '));
-  };
-  const handleModalCardExpiryChange = (e) => {
-    const raw = e.target.value.replace(/\D/g, '').slice(0, 4);
-    if (raw.length >= 3) {
-      setModalCardExpiry(`${raw.slice(0, 2)}/${raw.slice(2)}`);
-    } else {
-      setModalCardExpiry(raw);
-    }
-  };
-  const handleModalCardCvvChange = (e) => {
-    setModalCardCvv(e.target.value.replace(/\D/g, '').slice(0, 4));
-  };
-  const validateExpiry = (val) => {
-    if (!/^(0[1-9]|1[0-2])\/?([0-9]{2})$/.test(val)) return false;
-    const parts = val.split('/');
-    const month = parseInt(parts[0], 10);
-    const year = parseInt(`20${parts[1]}`, 10);
-    const now = new Date();
-    const currentYear = now.getFullYear();
-    const currentMonth = now.getMonth() + 1;
-    if (year < currentYear) return false;
-    if (year === currentYear && month < currentMonth) return false;
-    return true;
-  };
+  try {
 
-  // Submit Payment Modal
-  const handleSubmitPayment = async (e) => {
-    e.preventDefault();
+    // Gets the PDF receipt from backend
+    const res = await api.get(`/api/client/bookings/${bookingId}/receipt`, {
+      responseType: 'blob'
+    });
 
-    if (modalPaymentMethod === 'CARD') {
-      if (!modalCardName.trim()) {
-        toast.warning('Please enter the Cardholder Name');
-        return;
-      }
-      const cleanCard = modalCardNumber.replace(/\s/g, '');
-      if (cleanCard.length !== 16) {
-        toast.warning('Please enter a valid 16-digit Card Number');
-        return;
-      }
-      if (!validateExpiry(modalCardExpiry)) {
-        toast.warning('Please enter a valid future Expiry Date (MM/YY)');
-        return;
-      }
-      if (!/^\d{3,4}$/.test(modalCardCvv)) {
-        toast.warning('Please enter a valid 3 or 4-digit CVV security code');
-        return;
-      }
+    // Creates a PDF file
+    const blob = new Blob([res.data], { type: 'application/pdf' });
 
-      setSubmittingPayment(true);
-      try {
-        await api.post(`/api/client/bookings/${paymentBooking.bookingId}/payment`, {
-          paymentMethod: 'CARD',
-          cardholderName: modalCardName.trim(),
-          cardNumber: cleanCard,
-          expiryDate: modalCardExpiry.trim(),
-          cvv: modalCardCvv.trim(),
-          amountPaidLkr: paymentBooking.totalAmountLkr
-        });
-        toast.success('💳 Payment successful! Booking status updated to PAID.');
-        setPaymentBooking(null);
-        setModalCardNumber('');
-        setModalCardExpiry('');
-        setModalCardCvv('');
-        fetchBookings();
-      } catch (err) {
-        console.error('Payment submit error', err);
-        const errMsg = err.response?.data?.error || err.message || 'Failed to submit card payment';
-        toast.error(errMsg);
-      } finally {
-        setSubmittingPayment(false);
-      }
-    } else {
-      if (!paymentRef.trim()) {
-        toast.warning('Please enter your Bank Transfer Reference / Deposit Slip number');
-        return;
-      }
+    // Creates a temporary URL for the PDF
+    const url = window.URL.createObjectURL(blob);
 
-      setSubmittingPayment(true);
-      try {
-        await api.post(`/api/client/bookings/${paymentBooking.bookingId}/payment`, {
-          paymentMethod: 'BANK_TRANSFER',
-          transactionRef: paymentRef.trim(),
-          amountPaidLkr: paymentBooking.totalAmountLkr
-        });
-        toast.success('Payment submitted for admin approval!');
-        setPaymentBooking(null);
-        setPaymentRef('');
-        fetchBookings();
-      } catch (err) {
-        console.error('Payment submit error', err);
-        toast.error('Failed to submit payment reference');
-      } finally {
-        setSubmittingPayment(false);
-      }
-    }
-  };
+    // Creates a download link
+    const link = document.createElement('a');
 
-  // Submit Review Modal
-  const handleSubmitReview = async (e) => {
-    e.preventDefault();
-    const comment = reviewComment.trim();
-    if (comment.length < 3 || comment.length > 1000) {
-      toast.warning('Feedback must be between 3 and 1000 characters long.');
+    // Adds the PDF URL to the link
+    link.href = url;
+
+    // Sets the PDF file name
+    link.setAttribute('download', `Pixora-Receipt-${bookingId}.pdf`);
+
+    // Adds the link to the page
+    document.body.appendChild(link);
+
+    // Starts the download
+    link.click();
+
+    // Removes the download link
+    link.remove();
+
+    // Removes the temporary URL
+    window.URL.revokeObjectURL(url);
+
+    // Shows success message
+    toast.success(`PDF Receipt downloaded for Booking #${bookingId}`);
+
+  } catch (err) {
+
+    // Shows error if download fails
+    console.error('Receipt download error', err);
+    toast.error('PDF receipt is available once your payment is approved by admin.');
+
+  } finally {
+
+    // Clears the downloading booking ID
+    setDownloadingReceiptId(null);
+  }
+};
+
+
+// Open Gallery Modal
+const handleOpenGallery = async (booking) => {
+
+  // Stores the selected booking
+  setGalleryBooking(booking);
+
+  // Starts photo loading
+  setLoadingPhotos(true);
+
+  try {
+
+    // Gets booking photos from backend
+    const res = await api.get(`/api/client/bookings/${booking.bookingId}/photos`);
+
+    // Stores the gallery photos
+    setGalleryPhotos(res.data);
+
+  } catch (err) {
+
+    // Shows error if photos cannot be loaded
+    console.error('Error fetching gallery photos', err);
+    toast.error('Could not load gallery photos');
+
+  } finally {
+
+    // Stops photo loading
+    setLoadingPhotos(false);
+  }
+};
+
+
+// Card input formatters & validator for modal
+
+// Formats the card number
+const handleModalCardNumberChange = (e) => {
+
+  // Allows only 16 numbers
+  const raw = e.target.value.replace(/\D/g, '').slice(0, 16);
+
+  // Adds spaces after every 4 numbers
+  setModalCardNumber(raw.replace(/(\d{4})(?=\d)/g, '$1 '));
+};
+
+
+// Formats the card expiry date
+const handleModalCardExpiryChange = (e) => {
+
+  // Allows only 4 numbers
+  const raw = e.target.value.replace(/\D/g, '').slice(0, 4);
+
+  // Adds / between month and year
+  if (raw.length >= 3) {
+    setModalCardExpiry(`${raw.slice(0, 2)}/${raw.slice(2)}`);
+  } else {
+    setModalCardExpiry(raw);
+  }
+};
+
+
+// Formats the CVV
+const handleModalCardCvvChange = (e) => {
+
+  // Allows only 4 numbers
+  setModalCardCvv(e.target.value.replace(/\D/g, '').slice(0, 4));
+};
+
+
+// Checks the expiry date
+const validateExpiry = (val) => {
+
+  // Checks MM/YY format
+  if (!/^(0[1-9]|1[0-2])\/?([0-9]{2})$/.test(val)) return false;
+
+  // Splits month and year
+  const parts = val.split('/');
+
+  // Gets the month
+  const month = parseInt(parts[0], 10);
+
+  // Gets the year
+  const year = parseInt(`20${parts[1]}`, 10);
+
+  // Gets the current date
+  const now = new Date();
+
+  // Gets the current year
+  const currentYear = now.getFullYear();
+
+  // Gets the current month
+  const currentMonth = now.getMonth() + 1;
+
+  // Checks if the year has expired
+  if (year < currentYear) return false;
+
+  // Checks if the month has expired
+  if (year === currentYear && month < currentMonth) return false;
+
+  // Expiry date is valid
+  return true;
+};
+
+
+// Submit Payment Modal
+const handleSubmitPayment = async (e) => {
+
+  // Stops page refresh
+  e.preventDefault();
+
+  // Checks if payment method is card
+  if (modalPaymentMethod === 'CARD') {
+
+    // Checks cardholder name
+    if (!modalCardName.trim()) {
+      toast.warning('Please enter the Cardholder Name');
       return;
     }
-    setSubmittingReview(true);
-    try {
-      const res = await api.post(`/api/client/bookings/${reviewBooking.bookingId}/review`, {
-        starRating,
-        reviewComment: comment
-      });
-      toast.success('Thank you for your feedback!');
-      const newReview = res.data;
-      setReviews((prev) => ({
-        ...prev,
-        [reviewBooking.bookingId]: newReview
-      }));
-      setReviewBooking(null);
-      setReviewComment('');
-    } catch (err) {
-      console.error('Review submit error', err);
-      const msg = err.response?.data?.error || 'Failed to submit review';
-      toast.error(msg);
-    } finally {
-      setSubmittingReview(false);
-    }
-  };
 
-  // Save Edited Review
-  const handleSaveEditReview = async (e) => {
-    e.preventDefault();
-    const comment = editReview.reviewComment.trim();
-    if (comment.length < 3 || comment.length > 1000) {
-      toast.warning('Feedback must be between 3 and 1000 characters long.');
+    // Removes spaces from card number
+    const cleanCard = modalCardNumber.replace(/\s/g, '');
+
+    // Checks card number length
+    if (cleanCard.length !== 16) {
+      toast.warning('Please enter a valid 16-digit Card Number');
       return;
     }
-    try {
-      const res = await api.put(`/api/client/reviews/${editReview.reviewId}`, {
-        starRating: editReview.starRating,
-        reviewComment: comment
-      });
-      toast.success('Review updated successfully!');
-      const updatedReview = res.data;
-      setReviews((prev) => ({
-        ...prev,
-        [editReview.bookingId]: updatedReview
-      }));
-      setEditReview(null);
-    } catch (err) {
-      console.error('Edit review error', err);
-      const msg = err.response?.data?.error || 'Failed to update review';
-      toast.error(msg);
-    }
-  };
 
-  // Delete Review
-  const handleDeleteReview = async (reviewId) => {
-    if (!window.confirm('Delete your review? This cannot be undone.')) return;
-    setDeletingReviewId(reviewId);
+    // Checks card expiry date
+    if (!validateExpiry(modalCardExpiry)) {
+      toast.warning('Please enter a valid future Expiry Date (MM/YY)');
+      return;
+    }
+
+    // Checks CVV
+    if (!/^\d{3,4}$/.test(modalCardCvv)) {
+      toast.warning('Please enter a valid 3 or 4-digit CVV security code');
+      return;
+    }
+
+    // Starts payment submission
+    setSubmittingPayment(true);
+
     try {
-      await api.delete(`/api/client/reviews/${reviewId}`);
-      toast.success('Review deleted.');
-      // Immediate local state update:
-      setReviews((prev) => {
-        const next = { ...prev };
-        for (const bId in next) {
-          if (next[bId]?.reviewId === reviewId) {
-            delete next[bId];
-          }
+
+      // Sends card payment details to backend
+      await api.post(`/api/client/bookings/${paymentBooking.bookingId}/payment`, {
+        paymentMethod: 'CARD',
+        cardholderName: modalCardName.trim(),
+        cardNumber: cleanCard,
+        expiryDate: modalCardExpiry.trim(),
+        cvv: modalCardCvv.trim(),
+        amountPaidLkr: paymentBooking.totalAmountLkr
+      });
+
+      // Shows payment success message
+      toast.success('💳 Payment successful! Booking status updated to PAID.');
+
+      // Closes payment modal
+      setPaymentBooking(null);
+
+      // Clears card details
+      setModalCardNumber('');
+      setModalCardExpiry('');
+      setModalCardCvv('');
+
+      // Reloads bookings
+      fetchBookings();
+
+    } catch (err) {
+
+      // Shows payment error
+      console.error('Payment submit error', err);
+
+      const errMsg = err.response?.data?.error || err.message || 'Failed to submit card payment';
+      toast.error(errMsg);
+
+    } finally {
+
+      // Stops payment submission
+      setSubmittingPayment(false);
+    }
+
+  } else {
+
+    // Checks bank transfer reference
+    if (!paymentRef.trim()) {
+      toast.warning('Please enter your Bank Transfer Reference / Deposit Slip number');
+      return;
+    }
+
+    // Starts payment submission
+    setSubmittingPayment(true);
+
+    try {
+
+      // Sends bank transfer details to backend
+      await api.post(`/api/client/bookings/${paymentBooking.bookingId}/payment`, {
+        paymentMethod: 'BANK_TRANSFER',
+        transactionRef: paymentRef.trim(),
+        amountPaidLkr: paymentBooking.totalAmountLkr
+      });
+
+      // Shows success message
+      toast.success('Payment submitted for admin approval!');
+
+      // Closes payment modal
+      setPaymentBooking(null);
+
+      // Clears payment reference
+      setPaymentRef('');
+
+      // Reloads bookings
+      fetchBookings();
+
+    } catch (err) {
+
+      // Shows payment error
+      console.error('Payment submit error', err);
+      toast.error('Failed to submit payment reference');
+
+    } finally {
+
+      // Stops payment submission
+      setSubmittingPayment(false);
+    }
+  }
+};
+
+
+// Submit Review Modal
+const handleSubmitReview = async (e) => {
+
+  // Stops page refresh
+  e.preventDefault();
+
+  // Removes extra spaces from feedback
+  const comment = reviewComment.trim();
+
+  // Checks feedback length
+  if (comment.length < 3 || comment.length > 1000) {
+    toast.warning('Feedback must be between 3 and 1000 characters long.');
+    return;
+  }
+
+  // Starts review submission
+  setSubmittingReview(true);
+
+  try {
+
+    // Sends review to backend
+    const res = await api.post(`/api/client/bookings/${reviewBooking.bookingId}/review`, {
+      starRating,
+      reviewComment: comment
+    });
+
+    // Shows success message
+    toast.success('Thank you for your feedback!');
+
+    // Gets the saved review
+    const newReview = res.data;
+
+    // Adds the new review to the page
+    setReviews((prev) => ({
+      ...prev,
+      [reviewBooking.bookingId]: newReview
+    }));
+
+    // Closes review modal
+    setReviewBooking(null);
+
+    // Clears review comment
+    setReviewComment('');
+
+  } catch (err) {
+
+    // Shows error if review submission fails
+    console.error('Review submit error', err);
+
+    const msg = err.response?.data?.error || 'Failed to submit review';
+    toast.error(msg);
+
+  } finally {
+
+    // Stops review submission
+    setSubmittingReview(false);
+  }
+};
+
+// Save Edited Review
+const handleSaveEditReview = async (e) => {
+
+  // Stops page refresh
+  e.preventDefault();
+
+  // Removes extra spaces from feedback
+  const comment = editReview.reviewComment.trim();
+
+  // Checks feedback length
+  if (comment.length < 3 || comment.length > 1000) {
+    toast.warning('Feedback must be between 3 and 1000 characters long.');
+    return;
+  }
+
+  try {
+
+    // Sends updated review to backend
+    const res = await api.put(`/api/client/reviews/${editReview.reviewId}`, {
+      starRating: editReview.starRating,
+      reviewComment: comment
+    });
+
+    // Shows success message
+    toast.success('Review updated successfully!');
+
+    // Gets the updated review
+    const updatedReview = res.data;
+
+    // Updates the review on the page
+    setReviews((prev) => ({
+      ...prev,
+      [editReview.bookingId]: updatedReview
+    }));
+
+    // Closes the edit review form
+    setEditReview(null);
+
+  } catch (err) {
+
+    // Shows error if update fails
+    console.error('Edit review error', err);
+    const msg = err.response?.data?.error || 'Failed to update review';
+    toast.error(msg);
+  }
+};
+
+
+// Delete Review
+const handleDeleteReview = async (reviewId) => {
+
+  // Asks user to confirm deletion
+  if (!window.confirm('Delete your review? This cannot be undone.')) return;
+
+  // Stores the review ID being deleted
+  setDeletingReviewId(reviewId);
+
+  try {
+
+    // Deletes review from backend
+    await api.delete(`/api/client/reviews/${reviewId}`);
+
+    // Shows success message
+    toast.success('Review deleted.');
+
+    // Immediate local state update:
+    setReviews((prev) => {
+
+      // Creates a copy of reviews
+      const next = { ...prev };
+
+      // Finds the deleted review
+      for (const bId in next) {
+
+        // Checks the review ID
+        if (next[bId]?.reviewId === reviewId) {
+
+          // Removes the review
+          delete next[bId];
         }
-        return next;
-      });
-    } catch (err) {
-      console.error('Delete review error', err);
-      toast.error('Failed to delete review');
-    } finally {
-      setDeletingReviewId(null);
-    }
-  };
-
-
-
-  // Cancel Booking
-  const handleCancelBooking = async (bookingId) => {
-    if (!window.confirm('Are you sure you want to cancel this booking?')) return;
-    try {
-      const res = await api.put(`/api/client/bookings/${bookingId}/cancel`);
-      if (res.status === 204) {
-        setBookings(prev => prev.filter(b => b.bookingId !== bookingId));
-        toast.info('Pending booking cancelled and purged');
-      } else {
-        toast.info('Booking cancelled');
       }
-      fetchBookings();
-    } catch (err) {
-      console.error('Cancel booking error', err);
-      toast.error('Could not cancel booking');
+
+      return next;
+    });
+
+  } catch (err) {
+
+    // Shows error if delete fails
+    console.error('Delete review error', err);
+    toast.error('Failed to delete review');
+
+  } finally {
+
+    // Clears the deleting review ID
+    setDeletingReviewId(null);
+  }
+};
+
+
+// Cancel Booking
+const handleCancelBooking = async (bookingId) => {
+
+  // Asks user to confirm cancellation
+  if (!window.confirm('Are you sure you want to cancel this booking?')) return;
+
+  try {
+
+    // Sends cancel request to backend
+    const res = await api.put(`/api/client/bookings/${bookingId}/cancel`);
+
+    // Checks if booking was removed
+    if (res.status === 204) {
+
+      // Removes booking from the page
+      setBookings(prev => prev.filter(b => b.bookingId !== bookingId));
+
+      // Shows cancellation message
+      toast.info('Pending booking cancelled and purged');
+
+    } else {
+
+      // Shows cancellation message
+      toast.info('Booking cancelled');
     }
-  };
+
+    // Reloads bookings
+    fetchBookings();
+
+  } catch (err) {
+
+    // Shows error if cancellation fails
+    console.error('Cancel booking error', err);
+    toast.error('Could not cancel booking');
+  }
+};
 
 
-  // Toggle Photo Favorite
-  const handleToggleFavorite = async (photoId) => {
-    try {
-      const res = await api.put(`/api/client/photos/${photoId}/toggle-favorite`);
-      setGalleryPhotos(prev =>
-        prev.map(p => p.photoId === photoId ? { ...p, isFavorite: res.data.isFavorite } : p)
+// Toggle Photo Favorite
+const handleToggleFavorite = async (photoId) => {
+
+  try {
+
+    // Updates favorite status in backend
+    const res = await api.put(`/api/client/photos/${photoId}/toggle-favorite`);
+
+    // Updates favorite status on the page
+    setGalleryPhotos(prev =>
+      prev.map(p => p.photoId === photoId ? { ...p, isFavorite: res.data.isFavorite } : p)
+    );
+
+  } catch (err) {
+
+    // Shows error if update fails
+    toast.error('Failed to update favorite');
+  }
+};
+
+
+// Open Edit Booking Modal
+const handleOpenEditBooking = (b) => {
+
+  // Stores selected booking
+  setEditBookingModal(b);
+
+  // Loads current event date
+  setEditEventDate(b.eventDate || '');
+
+  // Loads current event time
+  setEditEventTime(b.eventTime || '');
+
+  // Loads current venue address
+  setEditVenueAddress(b.venueAddress || '');
+
+  // Loads current client notes
+  setEditClientNotes(b.clientNotes || '');
+};
+
+
+// Save Edited Booking
+const handleSaveEditBooking = async (e) => {
+
+  // Stops page refresh
+  e.preventDefault();
+
+  // Checks required fields
+  if (!editEventDate || !editEventTime || !editVenueAddress.trim()) {
+    toast.warning('Please fill in all required fields');
+    return;
+  }
+
+  // Starts saving
+  setSavingEdit(true);
+
+  try {
+
+    // Sends updated booking details to backend
+    await api.put(`/api/client/bookings/${editBookingModal.bookingId}`, {
+      eventDate: editEventDate,
+      eventTime: editEventTime,
+      venueAddress: editVenueAddress.trim(),
+      clientNotes: editClientNotes.trim()
+    });
+
+    // Shows success message
+    toast.success('Booking updated! Photographer re-approval has been requested.');
+
+    // Closes edit booking form
+    setEditBookingModal(null);
+
+    // Reloads bookings
+    fetchBookings();
+
+  } catch (err) {
+
+    // Shows error if update fails
+    const msg = err.response?.data?.error || 'Failed to update booking';
+    toast.error(msg);
+
+  } finally {
+
+    // Stops saving
+    setSavingEdit(false);
+  }
+};
+
+
+// Returns a badge based on booking status
+const getStatusBadge = (status) => {
+
+  // Checks booking status
+  switch (status) {
+
+    // Paid booking
+    case 'PAID':
+      return (
+        <span className="inline-flex items-center space-x-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-950/60 text-emerald-400 border border-emerald-500/30">
+          <CheckCircle2 className="w-3 h-3" />
+          <span>PAID</span>
+        </span>
       );
-    } catch (err) {
-      toast.error('Failed to update favorite');
-    }
-  };
 
-  // Open Edit Booking Modal
-  const handleOpenEditBooking = (b) => {
-    setEditBookingModal(b);
-    setEditEventDate(b.eventDate || '');
-    setEditEventTime(b.eventTime || '');
-    setEditVenueAddress(b.venueAddress || '');
-    setEditClientNotes(b.clientNotes || '');
-  };
+    // Confirmed booking
+    case 'CONFIRMED':
+      return (
+        <span className="inline-flex items-center space-x-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-green-950/60 text-green-400 border border-green-500/30">
+          <CheckCircle2 className="w-3 h-3" />
+          <span>Confirmed</span>
+        </span>
+      );
 
-  // Save Edited Booking
-  const handleSaveEditBooking = async (e) => {
-    e.preventDefault();
-    if (!editEventDate || !editEventTime || !editVenueAddress.trim()) {
-      toast.warning('Please fill in all required fields');
-      return;
-    }
-    setSavingEdit(true);
-    try {
-      await api.put(`/api/client/bookings/${editBookingModal.bookingId}`, {
-        eventDate: editEventDate,
-        eventTime: editEventTime,
-        venueAddress: editVenueAddress.trim(),
-        clientNotes: editClientNotes.trim()
-      });
-      toast.success('Booking updated! Photographer re-approval has been requested.');
-      setEditBookingModal(null);
-      fetchBookings();
-    } catch (err) {
-      const msg = err.response?.data?.error || 'Failed to update booking';
-      toast.error(msg);
-    } finally {
-      setSavingEdit(false);
-    }
-  };
+    // Completed booking
+    case 'COMPLETED':
+      return (
+        <span className="inline-flex items-center space-x-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-blue-950/60 text-blue-400 border border-blue-500/30">
+          <CheckCircle2 className="w-3 h-3" />
+          <span>Completed</span>
+        </span>
+      );
+
+    // Cancelled booking
+    case 'CANCELLED':
+      return (
+        <span className="inline-flex items-center space-x-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-red-950/60 text-red-400 border border-red-500/30">
+          <XCircle className="w-3 h-3" />
+          <span>Cancelled</span>
+        </span>
+      );
+
+    // Pending booking
+    default:
+      return (
+        <span className="inline-flex items-center space-x-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-yellow-950/60 text-yellow-400 border border-yellow-500/30">
+          <AlertCircle className="w-3 h-3" />
+          <span>Pending Admin Approval</span>
+        </span>
+      );
+  }
+};
 
 
-  const getStatusBadge = (status) => {
-    switch (status) {
-      case 'PAID':
-        return (
-          <span className="inline-flex items-center space-x-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-950/60 text-emerald-400 border border-emerald-500/30">
-            <CheckCircle2 className="w-3 h-3" />
-            <span>PAID</span>
-          </span>
-        );
-      case 'CONFIRMED':
-        return (
-          <span className="inline-flex items-center space-x-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-green-950/60 text-green-400 border border-green-500/30">
-            <CheckCircle2 className="w-3 h-3" />
-            <span>Confirmed</span>
-          </span>
-        );
-      case 'COMPLETED':
-        return (
-          <span className="inline-flex items-center space-x-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-blue-950/60 text-blue-400 border border-blue-500/30">
-            <CheckCircle2 className="w-3 h-3" />
-            <span>Completed</span>
-          </span>
-        );
-      case 'CANCELLED':
-        return (
-          <span className="inline-flex items-center space-x-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-red-950/60 text-red-400 border border-red-500/30">
-            <XCircle className="w-3 h-3" />
-            <span>Cancelled</span>
-          </span>
-        );
-      default:
-        return (
-          <span className="inline-flex items-center space-x-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-yellow-950/60 text-yellow-400 border border-yellow-500/30">
-            <AlertCircle className="w-3 h-3" />
-            <span>Pending Admin Approval</span>
-          </span>
-        );
-    }
-  };
+// Returns a badge based on payment status
+const getPaymentBadge = (status) => {
 
-  const getPaymentBadge = (status) => {
-    switch (status) {
-      case 'PAID':
-        return (
-          <span className="text-[11px] font-mono px-2 py-0.5 rounded bg-emerald-900/40 text-emerald-400 border border-emerald-600/30">
-            PAID
-          </span>
-        );
-      case 'APPROVED':
-        return (
-          <span className="text-[11px] font-mono px-2 py-0.5 rounded bg-green-900/40 text-green-400 border border-green-600/30">
-            Payment Approved
-          </span>
-        );
-      case 'REJECTED':
-        return (
-          <span className="text-[11px] font-mono px-2 py-0.5 rounded bg-red-900/40 text-red-400 border border-red-600/30">
-            Payment Rejected
-          </span>
-        );
-      case 'PENDING_APPROVAL':
-        return (
-          <span className="text-[11px] font-mono px-2 py-0.5 rounded bg-yellow-900/40 text-yellow-400 border border-yellow-600/30">
-            Verification Pending
-          </span>
-        );
-      default:
-        return (
-          <span className="text-[11px] font-mono px-2 py-0.5 rounded bg-gray-800 text-gray-400">
-            Payment Unsubmitted
-          </span>
-        );
-    }
-  };
+  // Checks payment status
+  switch (status) {
 
-  return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-14 space-y-10">
-      
-      {/* Client Welcome Header */}
-      <div className="border-b border-gray-800 pb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <span className="text-xs uppercase font-mono tracking-widest text-gold">
-            Client Portal
-          </span>
-          <h1 className="font-serif-title text-3xl sm:text-4xl font-bold text-white mt-1">
-            My Birthday Celebrations
-          </h1>
-          <p className="text-xs sm:text-sm text-gray-400 mt-1">
-            Track your reservations, download official PDF receipts, and access your event photo galleries.
-          </p>
-        </div>
-        <div className="flex flex-wrap items-center gap-3 self-start sm:self-auto">
-          <Link
-            to="/packages"
-            className="px-6 py-2.5 rounded-xl btn-gold text-xs font-semibold shadow-lg shadow-gold/20 flex items-center space-x-2"
-          >
-            <Sparkles className="w-3.5 h-3.5" />
-            <span>Book Another Celebration</span>
-          </Link>
-        </div>
+    // Payment completed
+    case 'PAID':
+      return (
+        <span className="text-[11px] font-mono px-2 py-0.5 rounded bg-emerald-900/40 text-emerald-400 border border-emerald-600/30">
+          PAID
+        </span>
+      );
+
+    // Payment approved
+    case 'APPROVED':
+      return (
+        <span className="text-[11px] font-mono px-2 py-0.5 rounded bg-green-900/40 text-green-400 border border-green-600/30">
+          Payment Approved
+        </span>
+      );
+
+    // Payment rejected
+    case 'REJECTED':
+      return (
+        <span className="text-[11px] font-mono px-2 py-0.5 rounded bg-red-900/40 text-red-400 border border-red-600/30">
+          Payment Rejected
+        </span>
+      );
+
+    // Payment waiting for approval
+    case 'PENDING_APPROVAL':
+      return (
+        <span className="text-[11px] font-mono px-2 py-0.5 rounded bg-yellow-900/40 text-yellow-400 border border-yellow-600/30">
+          Verification Pending
+        </span>
+      );
+
+    // Payment not submitted
+    default:
+      return (
+        <span className="text-[11px] font-mono px-2 py-0.5 rounded bg-gray-800 text-gray-400">
+          Payment Unsubmitted
+        </span>
+      );
+  }
+};
+
+
+return (
+  <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-14 space-y-10">
+    
+    {/* Shows the client welcome section */}
+    <div className="border-b border-gray-800 pb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+      <div>
+        <span className="text-xs uppercase font-mono tracking-widest text-gold">
+          Client Portal
+        </span>
+
+        {/* Dashboard title */}
+        <h1 className="font-serif-title text-3xl sm:text-4xl font-bold text-white mt-1">
+          My Birthday Celebrations
+        </h1>
+
+        {/* Dashboard description */}
+        <p className="text-xs sm:text-sm text-gray-400 mt-1">
+          Track your reservations, download official PDF receipts, and access your event photo galleries.
+        </p>
       </div>
+
+      <div className="flex flex-wrap items-center gap-3 self-start sm:self-auto">
+
+        {/* Opens the packages page */}
+        <Link
+          to="/packages"
+          className="px-6 py-2.5 rounded-xl btn-gold text-xs font-semibold shadow-lg shadow-gold/20 flex items-center space-x-2"
+        >
+          <Sparkles className="w-3.5 h-3.5" />
+          <span>Book Another Celebration</span>
+        </Link>
+
+      </div>
+    </div>
 
       {/* Bookings List */}
       {loading ? (
