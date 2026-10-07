@@ -13,36 +13,42 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+//This class contains business logic and should be managed by Spring
 @Service
 @RequiredArgsConstructor
 public class PromoService {
 
+    //This gives PromoService access to the database.FindAll()SavePayment()DeleteByID()
     private final PromoCodeRepository promoCodeRepository;
 
+    //It validates a promo code and calculates the discount
     @Transactional(readOnly = true)
     public Map<String, Object> validatePromo(String code, BigDecimal bookingAmount) {
         Map<String, Object> result = new HashMap<>();
+        //When we selecting the promo code remove spaces from selected one 
         if (code == null || code.trim().isEmpty()) {
             result.put("valid", false);
             result.put("message", "Promo code cannot be empty");
             return result;
         }
-
+        
+        //This searches the database for a promo code that,matches the code,ignores uppercase/lowercase,must be active
         PromoCode promo = promoCodeRepository.findByCodeIgnoreCaseAndIsActiveTrue(code.trim())
                 .orElse(null);
-
+        
+        //If no promo was found,Promo is invalid,Creates an appropriate error message
         if (promo == null) {
             result.put("valid", false);
             result.put("message", "Invalid or inactive promo code: " + code.trim());
             return result;
         }
-
+        //Promo code can be expire only admin concept 
         if (promo.getExpiryDate() != null && promo.getExpiryDate().isBefore(LocalDate.now())) {
             result.put("valid", false);
             result.put("message", "This promo code has expired");
             return result;
         }
-
+        //This checks whether the customer's booking amount meets the promo's minimum requirement.
         if (promo.getMinBookingAmountLkr() != null && bookingAmount != null &&
                 bookingAmount.compareTo(promo.getMinBookingAmountLkr()) < 0) {
             result.put("valid", false);
@@ -50,6 +56,7 @@ public class PromoService {
             return result;
         }
 
+        //We use BigDecimal for financial calculations to avoid floating-point precision problems
         BigDecimal discountAmount = BigDecimal.ZERO;
         if (bookingAmount != null && bookingAmount.compareTo(BigDecimal.ZERO) > 0) {
             discountAmount = bookingAmount.multiply(BigDecimal.valueOf(promo.getDiscountPercent()))
